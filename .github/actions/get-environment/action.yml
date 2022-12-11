@@ -1,0 +1,21 @@
+name: "Get Environment"
+description: "Get the environment we are currently running on."
+
+outputs:
+  env_name:
+    description: "The environment name that is being run on"
+    value: ${{ steps.branch_check.outputs.environment_name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check environment to use
+      id: branch_check
+      shell: bash
+      run: |
+        echo "Running on branch ${{ github.ref }}"
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment_name=Production" >> $GITHUB_OUTPUT
+        elif ["${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "enivronment_name=Development" >> $GITHUB_OUTPUT
+        fi
