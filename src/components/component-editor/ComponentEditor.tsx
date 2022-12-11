@@ -1,3 +1,4 @@
+import './ComponentEditor.css';
 type Props = {
   // Pass the component
 };
