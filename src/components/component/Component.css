@@ -1,0 +1,10 @@
+.component {
+  background-color: white;
+  position: relative;
+  transform: translate(var(--x), var(--y));
+  min-height: 50px;
+  max-width: 50px;
+  display: flex;
+  justify-content: space-between;
+  user-select: none;
+}

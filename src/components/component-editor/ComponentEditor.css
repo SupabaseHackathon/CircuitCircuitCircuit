@@ -3,4 +3,5 @@
   width: 80vw;
   min-height: 70vh;
   background-color: var(--gray-8);
+  position: absolute;
 }
