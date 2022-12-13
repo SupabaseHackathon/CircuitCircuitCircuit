@@ -1,0 +1,7 @@
+#__component-view-editor {
+  margin-top: var(--size-6);
+  width: 80vw;
+  min-height: 70vh;
+  background-color: var(--gray-8);
+  position: absolute;
+}

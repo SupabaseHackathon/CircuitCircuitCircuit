@@ -1,2 +1,11 @@
 @import 'open-props/style';
 @import 'open-props/normalize';
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
