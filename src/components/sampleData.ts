@@ -36,6 +36,12 @@ export type ComponentData = {
     connections: ConnectionData[],
 }
 
+export const simulateGetComponentDataById = (id: UUID) => {
+	return {
+		'XOR00000-0000-0000-0000-000000000000': XORData,
+	}[id];
+};
+
 export const XORData: ComponentData = {
     components: [
         {
@@ -143,3 +149,78 @@ export const XORData: ComponentData = {
         },
     ],
 }
+
+export const BitAdderData: ComponentData = {
+	components: [
+		{
+			id: 'XOR00000-0000-0000-0000-000000000000',
+			name: "XOR",
+			x: 0,
+			y: 0
+		},
+		{
+			id: nameToId["and"],
+			name: "And",
+			x: 0,
+			y: 0
+		},
+	],
+	componentInputs: ["A", "B"],
+    componentOutputs: ["Sum", "Carry"],
+    connections: [
+        {
+            from: {
+                output: "A"
+            },
+            to: {
+                component: 0,
+                input: "A"
+            }
+        },
+        {
+            from: {
+                output: "B"
+            },
+            to: {
+                component: 0,
+                input: "B"
+            }
+        },
+        {
+            from: {
+                output: "A"
+            },
+            to: {
+                component: 1,
+                input: "A"
+            }
+        },
+        {
+            from: {
+                output: "B"
+            },
+            to: {
+                component: 1,
+                input: "B"
+            }
+        },
+		{
+            from: {
+				component: 0,
+                output: "Output"
+            },
+            to: {
+                input: "Sum"
+            }
+        },
+		{
+            from: {
+				component: 1,
+                output: "Output"
+            },
+            to: {
+                input: "Carry"
+            }
+        },
+    ],
+};

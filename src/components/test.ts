@@ -1,5 +1,5 @@
 import { OutputStates, InputStates } from "./base/not";
-import { ComponentData, ConnectionData, InputName, nameToId, OutputName, UUID, XORData } from "./sampleData";
+import { BitAdderData, ComponentData, ConnectionData, InputName, nameToId, OutputName, simulateGetComponentDataById, UUID, XORData } from "./sampleData";
 
 const observe = Symbol("observe");
 const unobserve = Symbol("unobserve");
@@ -10,8 +10,18 @@ type Observable<T extends Record<string | symbol | number, any>> = T & {
 }
 const observable = <T extends Record<string | symbol | number, any>>(obj: T) => {
 	const observers: (() => void)[] = [];
-	(obj as any)[observe] = (observer: () => void) => observers.push(observer);
-	(obj as any)[unobserve] = (observer: () => void) => observers.filter(o => o !== observer);
+
+    Object.defineProperty(obj, observe, {
+        value: (observer: () => void) => observers.push(observer),
+        writable: false,
+        enumerable: false,
+    });
+
+    Object.defineProperty(obj, unobserve, {
+        value: (observer: () => void) => observers.filter(o => o !== observer),
+        writable: false,
+        enumerable: false,
+    });
 
 	return new Proxy(obj, {
 		set: (target, key, value) => {
@@ -31,32 +41,30 @@ class Connection<TFrom extends OutputName, TTo extends InputName> {
 
 	constructor({ from, to }: {
 		from: {
-			component: Component,
+			outputs: Observable<Record<TFrom, boolean>>,
 			key: TFrom,
 		},
 		to: {
+			inputs: Record<TTo, boolean>,
 			key: TTo,
-			component: Component,
 		},
 	}) {
 		this.#from = from;
 
-		console.log(from.component.name, from.key, to.component.name, to.key);
-		to.component.inputs[to.key] = from.component.outputs[from.key];
-		console.log("use Wire", from.component.outputs[from.key], from.component, from.key);
-		from.component.outputs[observe](() => {
-			to.component.inputs[to.key] = from.component.outputs[from.key];
+		to.inputs[to.key] = from.outputs[from.key];
+		from.outputs[observe](() => {
+			to.inputs[to.key] = from.outputs[from.key];
 		});
 
 	}
 
 	get isActive() {
-		return this.#from.component.outputs[this.#from.key];
+		return this.#from.outputs[this.#from.key];
 	}
 }
 
 abstract class Component<TInputs extends OutputName = OutputName, TOutputs extends InputName = InputName> {
-	protected abstract _inputs: OutputStates<TInputs>;
+	protected abstract _inputs: Observable<OutputStates<TInputs>>;
 	protected abstract _outputs: Observable<InputStates<TOutputs>>;
 	protected _subComponents: Component[] = [];
 	protected _connections: Connection<TInputs, TOutputs>[] = [];
@@ -93,7 +101,7 @@ abstract class Component<TInputs extends OutputName = OutputName, TOutputs exten
 
 
 	lock() {
-        this._lockedInputs = Object.freeze(structuredClone(this._inputs));
+        this._lockedInputs = Object.freeze({ ...this._inputs });
     };
 }
 
@@ -109,27 +117,25 @@ export class CustomComponent extends Component {
 
     constructor(componentData: ComponentData, meta?: MetaData) {
 		super();
-		console.log(meta);
 		this._name = meta?.name ?? "CustomComponent without name"; // TODO: add name
 
-        this._inputs = Object.fromEntries(componentData.componentOutputs.map(key => [key, false]));
-        this._outputs = observable(Object.fromEntries(componentData.componentInputs.map(key => [key, false])));
+        this._inputs = observable(Object.fromEntries(componentData.componentInputs.map(key => [key, false])));
+        this._outputs = observable(Object.fromEntries(componentData.componentOutputs.map(key => [key, false])));
 
 		this._subComponents = componentData.components.map(({ id, ...meta }) => createComponent(id, meta));
 		this._connections = componentData.connections.map(({ from, to }) => new Connection({
 			from: {
-				component: from.component !== undefined ? this._subComponents[from.component] : this,
+				outputs: from.component !== undefined ? this._subComponents[from.component].outputs : this.inputs,
 				key: from.output,
 			},
 			to: {
-				component: to.component !== undefined ? this._subComponents[to.component] : this,
+				inputs: to.component !== undefined ? this._subComponents[to.component].inputs : this.outputs,
 				key: to.input,
 			}
 		}));
     }
 
 	_step(lockedInputs: typeof this._inputs) {
-
         this.subComponents.forEach(component => component.lock());
         this.subComponents.forEach(component => component.step());
 	}
@@ -141,7 +147,7 @@ export class Input extends Component<never, OutputName> {
 
 	constructor(inputs: OutputName[]) {
 		super();
-		this._inputs = {};
+		this._inputs = observable({});
 		this._outputs = observable(Object.fromEntries(inputs.map(key => [key, false])));
 		this._name = "Input";
 	}
@@ -157,7 +163,7 @@ export class Output extends Component<InputName, never> {
 
 	constructor(inputs: InputName[]) {
 		super();
-		this._inputs = Object.fromEntries(inputs.map(key => [key, false]));
+		this._inputs = observable(Object.fromEntries(inputs.map(key => [key, false])));
 		this._outputs = observable({});
 		this._name = "Output";
 	}
@@ -173,7 +179,7 @@ class Not extends Component<"A", "Output"> {
 
 	constructor(meta?: MetaData) {
 		super();
-		this._inputs = { A: false };
+		this._inputs = observable({ A: false });
 		this._outputs = observable({ Output: false });
 		this._name = meta?.name ?? "Not";
 	}
@@ -189,13 +195,12 @@ class And extends Component<"A" | "B", "Output"> {
 
 	constructor(meta?: MetaData) {
 		super();
-		this._inputs = { A: false, B: false };
+		this._inputs = observable({ A: false, B: false });
 		this._outputs = observable({ Output: false });
 		this._name = meta?.name ?? "And";
 	}
 
 	_step(lockedInputs: typeof this._inputs) {
-		console.log("and step", this._outputs["Output"], lockedInputs["A"], lockedInputs["B"]);
 		this._outputs["Output"] = lockedInputs["A"] && lockedInputs["B"];
 	}
 }
@@ -206,7 +211,7 @@ class Or extends Component<"A" | "B", "Output"> {
 
 	constructor(meta?: MetaData) {
 		super();
-		this._inputs = { A: false, B: false };
+		this._inputs = observable({ A: false, B: false });
 		this._outputs = observable({ Output: false });
 		this._name = meta?.name ?? "Or";
 	}
@@ -225,20 +230,36 @@ const createComponent = (id: UUID, meta?: MetaData) => {
 		case nameToId["and"]:
 			return new And(meta);
 		default:
-			const componentData: ComponentData = null as unknown as ComponentData; // TODO Implement getting from server
+			const componentData = simulateGetComponentDataById(id); // TODO Implement getting from server
+			if (!componentData) throw new Error(`Component with id "${id}" not found`);
+
 			return new CustomComponent(componentData, meta);
 	}
 };
 
-const XOR = new CustomComponent(XORData, { name: "XOR" } as unknown as MetaData);
+// const XOR = new CustomComponent(XORData, { name: "XOR" } as unknown as MetaData);
 
-XOR.outputs["A"] = false;
-XOR.outputs["B"] = true;
+// XOR.inputs["A"] = true;
+// XOR.inputs["B"] = true;
+
+// for (let i = 0; i < 20; i++) {
+//     XOR.lock();
+//     XOR.step();
+// }
+
+// console.log("Result:", XOR.inputs["A"], XOR.name ,XOR.inputs["B"], "=", XOR.outputs["Output"]);
+// console.log(XOR);
+
+
+const BitAdder = new CustomComponent(BitAdderData, { name: "BitAdder" } as unknown as MetaData);
+
+BitAdder.inputs["A"] = false;
+BitAdder.inputs["B"] = false;
 
 for (let i = 0; i < 20; i++) {
-    XOR.lock();
-    XOR.step();
+    BitAdder.lock();
+    BitAdder.step();
 }
 
-console.log("Result:", XOR.inputs["Output"]);
-console.log(XOR);
+console.log("Result:", +BitAdder.inputs["A"], "+", +BitAdder.inputs["B"], "=", +BitAdder.outputs["Carry"], +BitAdder.outputs["Sum"]);
+console.log(BitAdder);
