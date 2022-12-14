@@ -27,6 +27,7 @@ export type ConnectionData = {
 export type ComponentData = {
     components: {
         id: UUID,
+		name: string,
         x: number,
         y: number,
     }[],
@@ -37,10 +38,30 @@ export type ComponentData = {
 
 export const XORData: ComponentData = {
     components: [
-        { id: nameToId["and"], x: 0, y: 0 },
-        { id: nameToId["or"], x: 0, y: 0 },
-        { id: nameToId["not"], x: 0, y: 0 },
-        { id: nameToId["and"], x: 0, y: 0 },
+        {
+			id: nameToId["and"],
+			name: "And_1",
+			x: 0,
+			y: 0
+		},
+        {
+			id: nameToId["or"],
+			name: "Or",
+			x: 0,
+			y: 0
+		},
+        {
+			id: nameToId["not"],
+			name: "Not",
+			x: 0,
+			y: 0
+		},
+        {
+			id: nameToId["and"],
+			name: "And_2",
+			x: 0,
+			y: 0
+		},
     ],
     componentInputs: ["A", "B"],
     componentOutputs: ["Output"],

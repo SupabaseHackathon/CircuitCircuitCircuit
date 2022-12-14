@@ -5,6 +5,8 @@ import App from './App';
 import './assets/css/index.css';
 import { NotFoundPage } from './pages/404/NotFoundPage';
 
+import "./components/test";
+
 const router = createBrowserRouter([
   {
     path: '/',
